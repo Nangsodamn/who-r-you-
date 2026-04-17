@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Mini Messenger - Chat</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+
+        <div id="main-screen" class="screen active">
+
+            <div class="chat-header">
+                <div class="user-info" onclick="toggleSidebar()">
+                    <div class="user-avatar">
+                        <img id="current-user-pfp" src="" alt="User">
+                    </div>
+                    <div class="user-details">
+                        <h3 id="current-user-name">Loading...</h3>
+                        <span class="online-status"> Online</span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button onclick="toggleSearch()" class="search-btn" title="Search messages">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <button onclick="toggleTheme()" class="theme-btn" title="Toggle theme">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <button onclick="toggleSidebar()" title="Menu">
+                        <i class="fas fa-users"></i>
+                    </button>
+                    <button onclick="logout()" title="Logout">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="search-bar" class="search-bar hidden">
+                <i class="fas fa-search"></i>
+                <input type="text" id="search-input" placeholder="Search messages..." autocomplete="off">
+                <button onclick="closeSearch()"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="search-results" class="search-results hidden"></div>
+
+            <div class="chat-tabs">
+                <button id="gc-tab" class="tab active" onclick="switchTab('gc')">
+                    <i class="fas fa-users"></i> Group Chat
+                </button>
+                <button id="pm-tab" class="tab" onclick="switchTab('pm')">
+                    <i class="fas fa-user"></i> Private Messages
+                </button>
+            </div>
+
+            <div id="gc-view" class="chat-view active">
+                <div class="gc-header" onclick="showGCInfo()">
+                    <div class="gc-avatar">
+                        <img id="gc-pfp" src="https://i.ibb.co/qYky078V/Screenshot-20260212-134936-1.jpg" alt="GC">
+                    </div>
+                    <div class="gc-info">
+                        <h3 id="gc-name">General Chat</h3>
+                        <span id="member-count">0 members</span>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+           
+                <div id="pinned-message" class="pinned-message hidden">
+                    <i class="fas fa-thumbtack"></i>
+                    <div id="pinned-content"></div>
+                    <button onclick="unpinMessage()"><i class="fas fa-times"></i></button>
+                </div>
+
+                <div id="gc-messages" class="messages-container"></div>
+
+                <div class="message-input-container">
+                    <button onclick="uploadImageMessage(true)" class="attach-btn" title="Send image">
+                        <i class="fas fa-image"></i>
+                    </button>
+                    <input type="text" id="gc-message-input" placeholder="Message #general" autocomplete="off">
+                    <button onclick="startVoiceRecording(true)" class="voice-btn" title="Voice message">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <button onclick="sendGCMessage()" class="send-btn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="pm-view" class="chat-view">
+                <div class="users-list-header">
+                    <h4><i class="fas fa-circle" style="color: #22c55e; font-size: 10px;"></i> Online Users</h4>
+                    <span id="online-count">0</span>
+                </div>
+                <div id="users-list" class="users-list"></div>
+
+                <div id="pm-chat-area" class="pm-chat-area hidden">
+                    <div class="pm-header">
+                        <button onclick="closePM()"><i class="fas fa-arrow-left"></i></button>
+                        <div class="pm-user-info">
+                            <img id="pm-user-pfp" src="" alt="">
+                            <div>
+                                <span id="pm-user-name"></span>
+                                <span id="typing-indicator" class="typing-indicator hidden">typing...</span>
+                            </div>
+                        </div>
+                        <div class="pm-actions">
+                            <button onclick="startAudioCall()" class="pm-call-btn" title="Audio call">
+                                <i class="fas fa-phone"></i>
+                            </button>
+                            <button onclick="startVideoCall()" class="pm-video-btn" title="Video call">
+                                <i class="fas fa-video"></i>
+                            </button>
+                            <button onclick="uploadImageMessage(false)" title="Send image">
+                                <i class="fas fa-image"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="pm-messages" class="messages-container"></div>
+                    
+                    <div class="message-input-container">
+                        <button onclick="uploadImageMessage(false)" class="attach-btn" title="Send image">
+                            <i class="fas fa-image"></i>
+                        </button>
+                        <input type="text" id="pm-message-input" placeholder="Private message" autocomplete="off">
+                        <button onclick="startVoiceRecording(false)" class="voice-btn" title="Voice message">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                        <button onclick="sendPM()" class="send-btn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h3><i class="fas fa-bars"></i> Menu</h3>
+                <button onclick="toggleSidebar()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="sidebar-content">
+                <div class="sidebar-section">
+                    <h4><i class="fas fa-users"></i> Group Chat Info</h4>
+                    <div class="gc-info-card" onclick="showGCInfo()">
+                        <img id="sidebar-gc-pfp" src="https://i.ibb.co/qYky078V/Screenshot-20260212-134936-1.jpg" alt="GC">
+                        <div>
+                            <strong id="sidebar-gc-name">General Chat</strong>
+                            <span id="sidebar-member-count">0 members</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-section">
+                    <h4><i class="fas fa-circle" style="color: #22c55e;"></i> Online Users</h4>
+                    <div id="sidebar-users-list" class="sidebar-users-list"></div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h4><i class="fas fa-robot"></i> Chat Bot</h4>
+                    <div class="bot-card" onclick="openBotChat()">
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #4f46e5; color: white; border-radius: 8px; cursor: pointer;">
+                            <i class="fas fa-robot" style="font-size: 24px;"></i>
+                            <div>
+                                <strong>Mini Assistant</strong>
+                                <div style="font-size: 12px; opacity: 0.8;">AI Chat Bot</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-section">
+                    <h4><i class="fas fa-cog"></i> Settings</h4>
+                    <button onclick="showChangeNameModal()" class="sidebar-btn">
+                        <i class="fas fa-user-edit"></i> Change Display Name
+                    </button>
+                    <button onclick="changeProfilePicture()" class="sidebar-btn">
+                        <i class="fas fa-camera"></i> Change Profile Picture
+                    </button>
+                    <button onclick="toggleTheme()" class="sidebar-btn">
+                        <i class="fas fa-moon"></i> Dark/Light Mode
+                    </button>
+                    <button onclick="logout()" class="sidebar-btn logout">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+
+                <div class="sidebar-section developer-section">
+                    <h4><i class="fas fa-code"></i> Developer</h4>
+                    <div class="developer-card">
+                        <div class="developer-avatar">
+                            <img src="https://ui-avatars.com/api/?name=ARI&background=4f46e5&color=fff&size=200" alt="ARI">
+                        </div>
+                        <div class="developer-name">ARI</div>
+                        <div class="developer-role">Lead Developer</div>
+                        <div class="developer-message">
+                            <i class="fas fa-heart" style="color: #ef4444;"></i> Mini Messenger v2.0
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="change-name-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-user-edit"></i> Change Display Name</h3>
+                    <button onclick="closeModal('change-name-modal')"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div class="current-name-display">
+                        <label>Current Name:</label>
+                        <span id="current-name-text"></span>
+                    </div>
+                    <input type="text" id="new-display-name" placeholder="Enter new name" class="modal-input" maxlength="30">
+                    <div class="modal-actions">
+                        <button onclick="updateDisplayName()" class="modal-btn primary">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                        <button onclick="closeModal('change-name-modal')" class="modal-btn secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="reaction-viewers-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="reaction-viewers-title">Reactions</h3>
+                    <button onclick="closeModal('reaction-viewers-modal')"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div id="reaction-viewers-list" class="users-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="user-info-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-id-card"></i> User Information</h3>
+                    <button onclick="closeModal('user-info-modal')"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body user-info-body">
+                    <div class="user-info-avatar">
+                        <img id="user-info-avatar" src="" alt="User Avatar">
+                    </div>
+                    <div class="user-info-details">
+                        <div class="info-row">
+                            <label><i class="fas fa-user"></i> Name:</label>
+                            <span id="user-info-name"></span>
+                        </div>
+                        <div class="info-row">
+                            <label><i class="fas fa-envelope"></i> Email:</label>
+                            <span id="user-info-email"></span>
+                        </div>
+                        <div class="info-row">
+                            <label><i class="fas fa-circle"></i> Status:</label>
+                            <span id="user-info-status"></span>
+                        </div>
+                        <div class="info-row">
+                            <label><i class="fas fa-clock"></i> Last Seen:</label>
+                            <span id="user-info-lastseen"></span>
+                        </div>
+                        <div class="info-row">
+                            <label><i class="fas fa-id-badge"></i> User ID:</label>
+                            <span id="user-info-uid" class="user-id-text"></span>
+                        </div>
+                        <div class="info-row">
+                            <label><i class="fas fa-calendar-plus"></i> Joined:</label>
+                            <span id="user-info-joined"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="gc-info-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-info-circle"></i> Group Info</h3>
+                    <button onclick="closeModal('gc-info-modal')"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div class="gc-pfp-section">
+                        <img id="modal-gc-pfp" src="" alt="GC">
+                        <button onclick="changeGCPFP()" class="btn-secondary">
+                            <i class="fas fa-camera"></i> Change Photo
+                        </button>
+                    </div>
+                    
+                    <div class="info-row">
+                        <label><i class="fas fa-tag"></i> Group Name</label>
+                        <div class="edit-group">
+                            <span id="display-gc-name">General Chat</span>
+                            <button onclick="editGCName()" class="edit-btn">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="info-row">
+                        <label><i class="fas fa-align-left"></i> Description</label>
+                        <div class="edit-group">
+                            <span id="display-gc-desc">Welcome to the group!</span>
+                            <button onclick="editGCDesc()" class="edit-btn">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="info-row">
+                        <label><i class="fas fa-calendar"></i> Created</label>
+                        <span id="gc-created">Just now</span>
+                    </div>
+                    
+                    <div class="info-row">
+                        <label><i class="fas fa-thumbtack"></i> Pinned Message</label>
+                        <div id="pinned-message-modal" class="pinned-message-modal">
+                            <span id="pinned-text">No pinned message</span>
+                        </div>
+                    </div>
+                    
+                    <h4><i class="fas fa-users"></i> Members</h4>
+                    <div id="members-list" class="members-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="reaction-modal" class="modal reaction-modal">
+            <div class="modal-content reaction-content">
+                <div class="reaction-picker">
+                    <button onclick="addReaction('👍')" class="reaction-btn">👍</button>
+                    <button onclick="addReaction('❤️')" class="reaction-btn">❤️</button>
+                    <button onclick="addReaction('😮')" class="reaction-btn">😮</button>
+                    <button onclick="addReaction('😂')" class="reaction-btn">😂</button>
+                    <button onclick="addReaction('😢')" class="reaction-btn">😢</button>
+                    <button onclick="addReaction('👏')" class="reaction-btn">👏</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="forward-modal" class="modal forward-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-share"></i> Forward Message</h3>
+                    <button onclick="closeModal('forward-modal')"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div id="forward-message-preview" class="forward-preview"></div>
+                    <h4>Select user:</h4>
+                    <div id="forward-users-list" class="forward-users-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="voice-player-modal" class="modal voice-player-modal">
+            <div class="modal-content voice-player-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-headphones"></i> Voice Message</h3>
+                    <button onclick="closeModal('voice-player-modal')"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body voice-player-body">
+                    <div class="voice-waveform" id="voice-waveform">
+                        <canvas id="waveform-canvas" width="300" height="80"></canvas>
+                    </div>
+                    <div class="voice-player-controls">
+                        <button id="play-pause-btn" class="voice-play-btn" onclick="toggleVoicePlay()">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <div class="voice-timeline">
+                            <span id="current-time">0:00</span>
+                            <div class="voice-progress-container" onclick="seekVoice(event)">
+                                <div id="voice-progress" class="voice-progress"></div>
+                            </div>
+                            <span id="total-time">0:00</span>
+                        </div>
+                        <button onclick="closeModal('voice-player-modal')" class="voice-close-btn">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="voice-recording-indicator" class="voice-recording hidden">
+            <i class="fas fa-microphone"></i>
+            <span class="voice-timer">0:00</span>
+            <button onclick="stopVoiceRecording()" class="stop-recording">
+                <i class="fas fa-stop"></i> Send
+            </button>
+        </div>
+
+        <audio id="voice-audio-player" style="display: none;"></audio>
+
+        <div id="call-modal" class="modal call-modal">
+            <div class="modal-content call-content">
+                <div class="call-header">
+                    <div class="call-user-info">
+                        <img id="call-user-pfp" src="" alt="">
+                        <div>
+                            <h3 id="call-user-name">Calling...</h3>
+                            <span id="call-status">Ringing</span>
+                        </div>
+                    </div>
+                    <button onclick="endCall()"><i class="fas fa-times"></i></button>
+                </div>
+
+                <div class="video-container" id="video-container" style="display: none;">
+                    <video id="remote-video" autoplay playsinline></video>
+                    <video id="local-video" autoplay playsinline muted></video>
+                </div>
+                
+                <div class="audio-container" id="audio-container">
+                    <div class="caller-avatar">
+                        <img id="caller-avatar" src="" alt="">
+                    </div>
+                    <div class="call-wave">
+                        <span></span><span></span><span></span><span></span><span></span>
+                    </div>
+                </div>
+
+                <div class="call-controls">
+                    <button onclick="toggleMute()" id="mute-btn" class="call-control-btn">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <button onclick="toggleVideo()" id="video-btn" class="call-control-btn">
+                        <i class="fas fa-video"></i>
+                    </button>
+                    <button onclick="toggleSpeaker()" id="speaker-btn" class="call-control-btn">
+                        <i class="fas fa-volume-up"></i>
+                    </button>
+                    <button onclick="endCall()" class="call-control-btn end-call">
+                        <i class="fas fa-phone-slash"></i>
+                    </button>
+                </div>
+
+                <div class="call-duration" id="call-duration">00:00</div>
+            </div>
+        </div>
+
+        <div id="incoming-call-modal" class="modal incoming-modal">
+            <div class="modal-content incoming-content">
+                <div class="incoming-call">
+                    <img id="incoming-caller-pfp" src="" alt="">
+                    <h3 id="incoming-caller-name">Incoming Call...</h3>
+                    <p id="incoming-call-type">Video call</p>
+                    <div class="incoming-actions">
+                        <button onclick="acceptCall()" class="accept-btn">
+                            <i class="fas fa-phone"></i> Accept
+                        </button>
+                        <button onclick="declineCall()" class="decline-btn">
+                            <i class="fas fa-phone-slash"></i> Decline
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+    <script>
+        function openBotChat() {
+            const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+            window.location.href = `bot.html?userId=${currentUser.uid || ''}&userName=${encodeURIComponent(currentUser.displayName || 'User')}&userPfp=${encodeURIComponent(currentUser.photoURL || '')}`;
+        }
+    </script>
+</body>
+</html>
